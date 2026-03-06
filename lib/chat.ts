@@ -1,9 +1,12 @@
+// Get API base URL from environment variables
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000'
+
 export async function streamChat(
   question: string,
   sessionId: string,
   onToken: (token: string) => void
 ) {
-  const response = await fetch("http://localhost:8000/chat", {
+  const response = await fetch(`${API_BASE_URL}/chat`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
