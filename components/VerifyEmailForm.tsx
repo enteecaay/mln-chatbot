@@ -1,158 +1,158 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { updateUser, saveSession, type User } from "@/lib/auth";
+import { useEffect, useRef, useState } from "react";
+import { LoaderCircle, MailCheck } from "lucide-react";
+
+import {
+  resendSignupOtp,
+  verifySignupOtp,
+  type PendingSignup,
+  type User,
+} from "@/lib/auth";
 
 export function VerifyEmailForm({
-  user,
+  pending,
   onVerified,
-  onResend,
+  onBack,
 }: {
-  user: User;
-  onVerified: (u: User) => void;
-  onResend: () => void;
+  pending: PendingSignup;
+  onVerified: (u: User | null) => void;
+  onBack: () => void;
 }) {
   const [code, setCode] = useState(["", "", "", "", "", ""]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
+  const [resendMessage, setResendMessage] = useState("");
   const inputs = useRef<(HTMLInputElement | null)[]>([]);
 
   useEffect(() => {
     inputs.current[0]?.focus();
   }, []);
 
-  // Cooldown timer
   useEffect(() => {
     if (resendCooldown <= 0) return;
-    const timer = setTimeout(() => setResendCooldown((c) => c - 1), 1000);
+    const timer = setTimeout(() => setResendCooldown((current) => current - 1), 1000);
     return () => clearTimeout(timer);
   }, [resendCooldown]);
 
-  const handleInput = (i: number, value: string) => {
+  const handleInput = (index: number, value: string) => {
     if (!/^\d*$/.test(value)) return;
-    const updated = [...code];
-    updated[i] = value.slice(-1);
-    setCode(updated);
+
+    const next = [...code];
+    next[index] = value.slice(-1);
+    setCode(next);
     setError("");
-    if (value && i < 5) inputs.current[i + 1]?.focus();
+    if (value && index < 5) inputs.current[index + 1]?.focus();
   };
 
-  const handleKeyDown = (i: number, e: React.KeyboardEvent) => {
-    if (e.key === "Backspace" && !code[i] && i > 0) {
-      inputs.current[i - 1]?.focus();
+  const handleKeyDown = (index: number, event: React.KeyboardEvent) => {
+    if (event.key === "Backspace" && !code[index] && index > 0) {
+      inputs.current[index - 1]?.focus();
     }
   };
 
-  const handlePaste = (e: React.ClipboardEvent) => {
-    e.preventDefault();
-    const pasted = e.clipboardData
-      .getData("text")
-      .replace(/\D/g, "")
-      .slice(0, 6);
-    const updated = [...code];
-    pasted.split("").forEach((char, i) => {
-      updated[i] = char;
+  const handlePaste = (event: React.ClipboardEvent) => {
+    event.preventDefault();
+    const pasted = event.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
+    const next = [...code];
+
+    pasted.split("").forEach((digit, index) => {
+      next[index] = digit;
     });
-    setCode(updated);
+
+    setCode(next);
     inputs.current[Math.min(pasted.length, 5)]?.focus();
   };
 
   const submit = async () => {
-    const entered = code.join("");
-    if (entered.length < 6) {
+    const otp = code.join("");
+    if (otp.length < 6) {
       setError("Vui lòng nhập đủ 6 chữ số");
       return;
     }
 
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 400));
+    setError("");
 
-    if (entered !== user.verificationCode) {
-      setError("Mã xác nhận không đúng. Kiểm tra console để xem mã thật.");
+    try {
+      const verified = await verifySignupOtp(pending, otp);
+      onVerified(verified);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "OTP không hợp lệ");
+    } finally {
       setLoading(false);
-      return;
     }
-
-    const updated = updateUser(user.id, {
-      emailVerified: true,
-      verificationCode: undefined,
-    });
-    if (updated) {
-      saveSession(updated);
-      onVerified(updated);
-    }
-    setLoading(false);
   };
 
-  const handleResend = () => {
-    onResend();
-    setResendCooldown(60);
-    setCode(["", "", "", "", "", ""]);
+  const handleResend = async () => {
     setError("");
-    inputs.current[0]?.focus();
+    setResendMessage("");
+
+    try {
+      await resendSignupOtp(pending.email);
+      setResendCooldown(60);
+      setCode(["", "", "", "", "", ""]);
+      setResendMessage("OTP mới đã được gửi tới email của bạn.");
+      inputs.current[0]?.focus();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Không thể gửi lại OTP");
+    }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#0b0b0f]">
-      <div className="w-full max-w-md px-4">
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 shadow-2xl text-center">
-          <div className="w-16 h-16 bg-blue-600/20 rounded-full flex items-center justify-center mx-auto mb-6">
-            <span className="text-3xl">📧</span>
-          </div>
+    <div className="auth-card w-full max-w-md text-center">
+      <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-[#fde7f1] text-[#b65c80]">
+        <MailCheck className="h-8 w-8" />
+      </div>
 
-          <h1 className="text-2xl font-bold text-white mb-2">Xác nhận email</h1>
-          <p className="text-zinc-400 text-sm mb-1">
-            Mã xác nhận đã được gửi đến
-          </p>
-          <p className="text-blue-400 text-sm font-medium mb-2">{user.email}</p>
-          <p className="text-zinc-500 text-xs mb-8">
-            (Demo: mã xác nhận hiển thị trong console trình duyệt)
-          </p>
+      <h1 className="text-3xl font-semibold text-slate-900">Xác nhận email</h1>
+      <p className="mt-2 text-sm text-slate-600">Nhập mã OTP gồm 6 chữ số vừa được gửi đến</p>
+      <p className="mt-1 text-sm font-semibold text-[#5d7ed8]">{pending.email}</p>
 
-          {/* OTP Inputs */}
-          <div className="flex gap-2 justify-center mb-6" onPaste={handlePaste}>
-            {code.map((digit, i) => (
-              <input
-                key={i}
-                ref={(el) => {
-                  inputs.current[i] = el;
-                }}
-                type="text"
-                inputMode="numeric"
-                maxLength={1}
-                value={digit}
-                onChange={(e) => handleInput(i, e.target.value)}
-                onKeyDown={(e) => handleKeyDown(i, e)}
-                className="w-11 h-12 text-center text-xl font-bold bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-blue-500 transition"
-              />
-            ))}
-          </div>
+      <div className="my-8 flex justify-center gap-2" onPaste={handlePaste}>
+        {code.map((digit, index) => (
+          <input
+            key={index}
+            ref={(element) => {
+              inputs.current[index] = element;
+            }}
+            type="text"
+            inputMode="numeric"
+            maxLength={1}
+            value={digit}
+            onChange={(event) => handleInput(index, event.target.value)}
+            onKeyDown={(event) => handleKeyDown(index, event)}
+            className="h-14 w-12 rounded-2xl border border-white/80 bg-white/80 text-center text-xl font-bold text-slate-900 outline-none transition focus:border-[#5d7ed8]"
+          />
+        ))}
+      </div>
 
-          {error && (
-            <p className="text-red-400 text-sm bg-red-950/30 border border-red-900/50 rounded-lg px-3 py-2 mb-4">
-              {error}
-            </p>
-          )}
+      {error && <p className="mb-4 rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</p>}
+      {resendMessage && <p className="mb-4 rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{resendMessage}</p>}
 
-          <button
-            onClick={submit}
-            disabled={loading || code.join("").length < 6}
-            className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-60 text-white py-2.5 rounded-lg font-medium transition mb-4"
-          >
-            {loading ? "Đang xác nhận..." : "Xác nhận"}
-          </button>
+      <button onClick={() => void submit()} disabled={loading || code.join("").length < 6} className="primary-button mb-4 w-full">
+        {loading ? (
+          <span className="inline-flex items-center gap-2">
+            <LoaderCircle className="h-4 w-4 animate-spin" />
+            Đang xác nhận...
+          </span>
+        ) : (
+          "Xác nhận OTP"
+        )}
+      </button>
 
-          <button
-            onClick={handleResend}
-            disabled={resendCooldown > 0}
-            className="text-sm text-zinc-400 hover:text-zinc-200 disabled:text-zinc-600 transition"
-          >
-            {resendCooldown > 0
-              ? `Gửi lại sau ${resendCooldown}s`
-              : "Gửi lại mã xác nhận"}
-          </button>
-        </div>
+      <div className="flex items-center justify-center gap-4 text-sm">
+        <button onClick={onBack} className="font-medium text-slate-500 transition hover:text-slate-900">
+          Quay lại
+        </button>
+        <button
+          onClick={() => void handleResend()}
+          disabled={resendCooldown > 0}
+          className="font-medium text-[#b65c80] transition hover:text-[#924869] disabled:text-slate-400"
+        >
+          {resendCooldown > 0 ? `Gửi lại sau ${resendCooldown}s` : "Gửi lại mã xác nhận"}
+        </button>
       </div>
     </div>
   );

@@ -1,21 +1,22 @@
 "use client";
 
 import { useState } from "react";
+import { ArrowLeft, LoaderCircle, UserPlus } from "lucide-react";
+
 import {
-  validateEmail,
-  validatePassword,
-  validateName,
   getPasswordStrength,
-  getUserByEmail,
-  createUser,
-  type User,
+  startSignup,
+  validateEmail,
+  validateName,
+  validatePassword,
+  type PendingSignup,
 } from "@/lib/auth";
 
 export function SignUpForm({
   onRegistered,
   onGoSignIn,
 }: {
-  onRegistered: (u: User) => void;
+  onRegistered: (pending: PendingSignup) => void;
   onGoSignIn: () => void;
 }) {
   const [form, setForm] = useState({
@@ -25,6 +26,7 @@ export function SignUpForm({
     confirm: "",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [submitError, setSubmitError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPw, setShowPw] = useState(false);
 
@@ -43,9 +45,6 @@ export function SignUpForm({
 
     const emailErr = validateEmail(form.email);
     if (emailErr) errs.email = emailErr;
-    else if (getUserByEmail(form.email))
-      errs.email = "Email này đã được đăng ký";
-
     const pwErr = validatePassword(form.password);
     if (pwErr) errs.password = pwErr;
 
@@ -59,149 +58,172 @@ export function SignUpForm({
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitError("");
     if (!validate()) return;
 
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 500));
 
-    const user = createUser({
-      name: form.name,
-      email: form.email,
-      password: form.password,
-    });
-    setLoading(false);
-    onRegistered(user);
+    try {
+      const pending = {
+        name: form.name.trim(),
+        email: form.email.trim().toLowerCase(),
+        password: form.password,
+      };
+      await startSignup(pending);
+      onRegistered(pending);
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : "Không thể tạo tài khoản");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#0b0b0f] py-8">
-      <div className="w-full max-w-md px-4">
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 shadow-2xl">
-          <div className="mb-8">
-            <h1 className="text-2xl font-bold text-white">Tạo tài khoản</h1>
-            <p className="text-zinc-400 text-sm mt-1">
-              Tham gia để bắt đầu trò chuyện
-            </p>
+    <div className="auth-card w-full max-w-md">
+      <div className="mb-8 flex items-start justify-between gap-4">
+        <div>
+          <span className="inline-flex rounded-full bg-white/70 px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-[#5d7ed8]">
+            Verify Email OTP
+          </span>
+          <h1 className="mt-4 text-3xl font-semibold text-slate-900">Tạo tài khoản</h1>
+          <p className="mt-2 text-sm leading-6 text-slate-600">Tạo tài khoản bằng email thật. Hệ thống sẽ gửi OTP đến Gmail để xác minh.</p>
+        </div>
+        <button
+          type="button"
+          onClick={onGoSignIn}
+          className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/70 bg-white/70 text-slate-600 transition hover:text-slate-900"
+        >
+          <ArrowLeft className="h-4 w-4" />
+        </button>
+      </div>
+
+      <form onSubmit={submit} className="space-y-4">
+        {/* Name */}
+        <div>
+          <label className="mb-1.5 block text-sm font-medium text-slate-700">
+            Họ và tên
+          </label>
+          <input
+            value={form.name}
+            onChange={set("name")}
+            placeholder="Nguyễn Văn A"
+            className="input"
+          />
+          {errors.name && (
+            <p className="mt-1 text-xs text-rose-600">{errors.name}</p>
+          )}
+        </div>
+
+        {/* Email */}
+        <div>
+          <label className="mb-1.5 block text-sm font-medium text-slate-700">
+            Email
+          </label>
+          <input
+            type="email"
+            value={form.email}
+            onChange={set("email")}
+            placeholder="you@example.com"
+            className="input"
+          />
+          {errors.email && (
+            <p className="mt-1 text-xs text-rose-600">{errors.email}</p>
+          )}
+        </div>
+
+        {/* Password */}
+        <div>
+          <label className="mb-1.5 block text-sm font-medium text-slate-700">
+            Mật khẩu
+          </label>
+          <div className="relative">
+            <input
+              type={showPw ? "text" : "password"}
+              value={form.password}
+              onChange={set("password")}
+              placeholder="Ít nhất 8 ký tự, chữ hoa, số, ký tự đặc biệt"
+              className="input pr-12"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPw(!showPw)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-500 transition hover:text-slate-800"
+            >
+              {showPw ? "Ẩn" : "Hiện"}
+            </button>
           </div>
 
-          <form onSubmit={submit} className="space-y-4">
-            {/* Name */}
-            <div>
-              <label className="block text-sm text-zinc-300 mb-1.5">
-                Họ và tên
-              </label>
-              <input
-                value={form.name}
-                onChange={set("name")}
-                placeholder="Nguyễn Văn A"
-                className="w-full px-4 py-2.5 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-blue-500 transition"
-              />
-              {errors.name && (
-                <p className="text-red-400 text-xs mt-1">{errors.name}</p>
-              )}
-            </div>
-
-            {/* Email */}
-            <div>
-              <label className="block text-sm text-zinc-300 mb-1.5">
-                Email
-              </label>
-              <input
-                type="email"
-                value={form.email}
-                onChange={set("email")}
-                placeholder="you@example.com"
-                className="w-full px-4 py-2.5 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-blue-500 transition"
-              />
-              {errors.email && (
-                <p className="text-red-400 text-xs mt-1">{errors.email}</p>
-              )}
-            </div>
-
-            {/* Password */}
-            <div>
-              <label className="block text-sm text-zinc-300 mb-1.5">
-                Mật khẩu
-              </label>
-              <div className="relative">
-                <input
-                  type={showPw ? "text" : "password"}
-                  value={form.password}
-                  onChange={set("password")}
-                  placeholder="Ít nhất 8 ký tự, chữ hoa, số, ký tự đặc biệt"
-                  className="w-full px-4 py-2.5 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-blue-500 transition pr-11"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPw(!showPw)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-200 text-xs"
-                >
-                  {showPw ? "Ẩn" : "Hiện"}
-                </button>
+          {/* Password strength bar */}
+          {form.password && (
+            <div className="mt-2">
+              <div className="flex gap-1 mb-1">
+                {[0, 1, 2, 3].map((i) => (
+                  <div
+                    key={i}
+                    className="flex-1 h-1 rounded-full transition-all duration-300"
+                    style={{
+                      backgroundColor:
+                        i < strength.score ? strength.color : "#3f3f46",
+                    }}
+                  />
+                ))}
               </div>
-
-              {/* Password strength bar */}
-              {form.password && (
-                <div className="mt-2">
-                  <div className="flex gap-1 mb-1">
-                    {[0, 1, 2, 3].map((i) => (
-                      <div
-                        key={i}
-                        className="flex-1 h-1 rounded-full transition-all duration-300"
-                        style={{
-                          backgroundColor:
-                            i < strength.score ? strength.color : "#3f3f46",
-                        }}
-                      />
-                    ))}
-                  </div>
-                  <p className="text-xs" style={{ color: strength.color }}>
-                    {strength.label}
-                  </p>
-                </div>
-              )}
-              {errors.password && (
-                <p className="text-red-400 text-xs mt-1">{errors.password}</p>
-              )}
+              <p className="text-xs" style={{ color: strength.color }}>
+                {strength.label}
+              </p>
             </div>
-
-            {/* Confirm password */}
-            <div>
-              <label className="block text-sm text-zinc-300 mb-1.5">
-                Xác nhận mật khẩu
-              </label>
-              <input
-                type={showPw ? "text" : "password"}
-                value={form.confirm}
-                onChange={set("confirm")}
-                placeholder="Nhập lại mật khẩu"
-                className="w-full px-4 py-2.5 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-blue-500 transition"
-              />
-              {errors.confirm && (
-                <p className="text-red-400 text-xs mt-1">{errors.confirm}</p>
-              )}
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-60 text-white py-2.5 rounded-lg font-medium transition mt-2"
-            >
-              {loading ? "Đang tạo tài khoản..." : "Đăng ký"}
-            </button>
-          </form>
-
-          <p className="text-center text-zinc-500 text-sm mt-6">
-            Đã có tài khoản?{" "}
-            <button
-              onClick={onGoSignIn}
-              className="text-blue-400 hover:text-blue-300 font-medium"
-            >
-              Đăng nhập
-            </button>
-          </p>
+          )}
+          {errors.password && (
+            <p className="mt-1 text-xs text-rose-600">{errors.password}</p>
+          )}
         </div>
-      </div>
+
+        {/* Confirm password */}
+        <div>
+          <label className="mb-1.5 block text-sm font-medium text-slate-700">
+            Xác nhận mật khẩu
+          </label>
+          <input
+            type={showPw ? "text" : "password"}
+            value={form.confirm}
+            onChange={set("confirm")}
+            placeholder="Nhập lại mật khẩu"
+            className="input"
+          />
+          {errors.confirm && (
+            <p className="mt-1 text-xs text-rose-600">{errors.confirm}</p>
+          )}
+        </div>
+
+        {submitError && (
+          <p className="rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{submitError}</p>
+        )}
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="primary-button mt-2 w-full"
+        >
+          {loading ? (
+            <span className="inline-flex items-center gap-2">
+              <LoaderCircle className="h-4 w-4 animate-spin" />
+              Đang tạo tài khoản...
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-2">
+              <UserPlus className="h-4 w-4" />
+              Đăng ký và nhận OTP
+            </span>
+          )}
+        </button>
+      </form>
+
+      <p className="mt-6 text-center text-sm text-slate-600">
+        Đã có tài khoản?{" "}
+        <button onClick={onGoSignIn} className="font-semibold text-[#5d7ed8] hover:text-[#4766bd]">
+          Đăng nhập
+        </button>
+      </p>
     </div>
   );
 }

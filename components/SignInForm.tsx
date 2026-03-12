@@ -1,21 +1,24 @@
 "use client";
 
 import { useState } from "react";
-import {
-  getUserByEmail,
-  verifyPassword,
-  saveSession,
-  type User,
-} from "@/lib/auth";
+import { LoaderCircle, LogIn } from "lucide-react";
+
+import { signIn, validateEmail, type User } from "@/lib/auth";
 
 export function SignInForm({
   onSignedIn,
   onGoSignUp,
+  onGoVerify,
+  preEmail,
+  successMessage,
 }: {
   onSignedIn: (u: User) => void;
   onGoSignUp: () => void;
+  onGoVerify: (email: string) => void;
+  preEmail?: string;
+  successMessage?: string;
 }) {
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(preEmail ?? "");
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState("");
@@ -26,95 +29,116 @@ export function SignInForm({
     setError("");
     setLoading(true);
 
-    await new Promise((r) => setTimeout(r, 400)); // UX delay
-
-    const user = getUserByEmail(email);
-    if (!user || !verifyPassword(password, user.passwordHash)) {
-      setError("Email hoặc mật khẩu không đúng");
+    try {
+      const user = await signIn(email, password);
+      onSignedIn(user);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Không thể đăng nhập");
+    } finally {
       setLoading(false);
+    }
+  };
+
+  const continueVerify = () => {
+    const normalizedEmail = email.trim().toLowerCase();
+    const emailError = validateEmail(normalizedEmail);
+    if (emailError) {
+      setError("Nhập email hợp lệ để tiếp tục xác minh OTP");
       return;
     }
 
-    saveSession(user);
-    onSignedIn(user);
-    setLoading(false);
+    setError("");
+    onGoVerify(normalizedEmail);
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#0b0b0f]">
-      <div className="w-full max-w-md px-4">
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 shadow-2xl">
-          <div className="mb-8">
-            <h1 className="text-2xl font-bold text-white">Đăng nhập</h1>
-            <p className="text-zinc-400 text-sm mt-1">
-              Chào mừng trở lại! Vui lòng đăng nhập để tiếp tục.
-            </p>
-          </div>
-
-          <form onSubmit={submit} className="space-y-4">
-            <div>
-              <label className="block text-sm text-zinc-300 mb-1.5">
-                Email
-              </label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                required
-                className="w-full px-4 py-2.5 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-blue-500 transition"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm text-zinc-300 mb-1.5">
-                Mật khẩu
-              </label>
-              <div className="relative">
-                <input
-                  type={showPw ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  required
-                  className="w-full px-4 py-2.5 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-blue-500 transition pr-11"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPw(!showPw)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-200 text-xs"
-                >
-                  {showPw ? "Ẩn" : "Hiện"}
-                </button>
-              </div>
-            </div>
-
-            {error && (
-              <p className="text-red-400 text-sm bg-red-950/30 border border-red-900/50 rounded-lg px-3 py-2">
-                {error}
-              </p>
-            )}
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-60 text-white py-2.5 rounded-lg font-medium transition mt-2"
-            >
-              {loading ? "Đang kiểm tra..." : "Đăng nhập"}
-            </button>
-          </form>
-
-          <p className="text-center text-zinc-500 text-sm mt-6">
-            Chưa có tài khoản?{" "}
-            <button
-              onClick={onGoSignUp}
-              className="text-blue-400 hover:text-blue-300 font-medium"
-            >
-              Đăng ký ngay
-            </button>
-          </p>
+    <div className="auth-card w-full max-w-md">
+      {successMessage && (
+        <div className="mb-6 rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+          {successMessage}
         </div>
+      )}
+      <div className="mb-8">
+        <span className="inline-flex rounded-full bg-white/70 px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-[#b65c80]">
+          MLN Chatbot
+        </span>
+        <h1 className="mt-4 text-3xl font-semibold text-slate-900">Đăng nhập</h1>
+        <p className="mt-2 text-sm leading-6 text-slate-600">
+          Đăng nhập để tiếp tục học tập, quản lý các cuộc trò chuyện và đồng bộ lịch sử trên mọi thiết bị.
+        </p>
       </div>
+
+      <form onSubmit={submit} className="space-y-4">
+        <div>
+          <label className="mb-1.5 block text-sm font-medium text-slate-700">Email</label>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="you@example.com"
+            required
+            className="input"
+          />
+        </div>
+
+        <div>
+          <label className="mb-1.5 block text-sm font-medium text-slate-700">Mật khẩu</label>
+          <div className="relative">
+            <input
+              type={showPw ? "text" : "password"}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              required
+              className="input pr-12"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPw(!showPw)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-500 transition hover:text-slate-800"
+            >
+              {showPw ? "Ẩn" : "Hiện"}
+            </button>
+          </div>
+        </div>
+
+        {error && <p className="rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</p>}
+
+        <button type="submit" disabled={loading} className="primary-button w-full">
+          {loading ? (
+            <span className="inline-flex items-center gap-2">
+              <LoaderCircle className="h-4 w-4 animate-spin" />
+              Đang kiểm tra...
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-2">
+              <LogIn className="h-4 w-4" />
+              Đăng nhập
+            </span>
+          )}
+        </button>
+      </form>
+
+      <p className="mt-6 text-center text-sm text-slate-600">
+        Chưa có tài khoản?{" "}
+        <button
+          onClick={onGoSignUp}
+          className="font-semibold text-[#b65c80] transition hover:text-[#924869]"
+        >
+          Đăng ký ngay
+        </button>
+      </p>
+
+      <p className="mt-2 text-center text-sm text-slate-600">
+        Đã đăng ký nhưng chưa xác minh?{" "}
+        <button
+          type="button"
+          onClick={continueVerify}
+          className="font-semibold text-[#5d7ed8] transition hover:text-[#3f66c6]"
+        >
+          Tiếp tục xác minh OTP
+        </button>
+      </p>
     </div>
   );
 }

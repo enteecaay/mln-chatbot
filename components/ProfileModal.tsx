@@ -1,15 +1,16 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useRef, useState } from "react";
+import { Camera, LockKeyhole, UserRound, X } from "lucide-react";
+
 import {
-  updateUser,
-  validateName,
-  validateEmail,
-  validatePassword,
+  changePassword,
   getPasswordStrength,
-  verifyPassword,
-  hashPassword,
-  getUserByEmail,
+  removeAvatar,
+  updateProfile,
+  uploadAvatar,
+  validateName,
+  validatePassword,
   type User,
 } from "@/lib/auth";
 
@@ -29,55 +30,48 @@ export function ProfileModal({
   const [tab, setTab] = useState<Tab>("info");
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800">
-          <h2 className="text-lg font-semibold text-white">Hồ sơ cá nhân</h2>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/35 px-4 backdrop-blur-sm">
+      <div className="w-full max-w-lg overflow-hidden rounded-[28px] border border-white/65 bg-white/88 shadow-[0_30px_70px_rgba(180,92,128,0.22)] backdrop-blur-xl">
+        <div className="flex items-center justify-between border-b border-rose-100 px-6 py-5">
+          <h2 className="text-lg font-semibold text-slate-900">Hồ sơ cá nhân</h2>
           <button
             onClick={onClose}
-            className="text-zinc-400 hover:text-white text-xl"
+            className="rounded-full p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
           >
-            ✕
+            <X className="h-4 w-4" />
           </button>
         </div>
 
-        {/* Tabs */}
-        <div className="flex border-b border-zinc-800">
-          {(["info", "password", "avatar"] as Tab[]).map((t) => (
+        <div className="flex border-b border-rose-100 bg-rose-50/60">
+          {(["info", "password", "avatar"] as Tab[]).map((item) => (
             <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={`flex-1 py-3 text-sm font-medium transition ${
-                tab === t
-                  ? "text-blue-400 border-b-2 border-blue-500"
-                  : "text-zinc-500 hover:text-zinc-300"
-              }`}
+              key={item}
+              onClick={() => setTab(item)}
+              className={`flex-1 py-3 text-sm font-medium transition ${tab === item
+                  ? "border-b-2 border-[#b65c80] text-[#b65c80]"
+                  : "text-slate-500 hover:text-slate-800"
+                }`}
             >
-              {
-                {
-                  info: "Thông tin",
-                  password: "Mật khẩu",
-                  avatar: "Ảnh đại diện",
-                }[t]
-              }
+              <span className="inline-flex items-center gap-2">
+                {item === "info" && <UserRound className="h-4 w-4" />}
+                {item === "password" && <LockKeyhole className="h-4 w-4" />}
+                {item === "avatar" && <Camera className="h-4 w-4" />}
+                {{ info: "Thông tin", password: "Mật khẩu", avatar: "Ảnh đại diện" }[item]}
+              </span>
             </button>
           ))}
         </div>
 
         <div className="p-6">
           {tab === "info" && <InfoTab user={user} onUpdate={onUpdate} />}
-          {tab === "password" && (
-            <PasswordTab user={user} onUpdate={onUpdate} />
-          )}
+          {tab === "password" && <PasswordTab user={user} onUpdate={onUpdate} />}
           {tab === "avatar" && <AvatarTab user={user} onUpdate={onUpdate} />}
         </div>
 
-        {/* Footer */}
         <div className="px-6 pb-6">
           <button
             onClick={onSignOut}
-            className="w-full border border-red-800 text-red-400 hover:bg-red-950/30 py-2 rounded-lg text-sm transition"
+            className="w-full rounded-2xl border border-rose-200 bg-rose-50 py-2.5 text-sm font-medium text-rose-700 transition hover:bg-rose-100"
           >
             Đăng xuất
           </button>
@@ -87,7 +81,6 @@ export function ProfileModal({
   );
 }
 
-// ─── Tab: Thông tin ──────────────────────────────────────────────────────────
 function InfoTab({
   user,
   onUpdate,
@@ -96,102 +89,63 @@ function InfoTab({
   onUpdate: (u: User) => void;
 }) {
   const [name, setName] = useState(user.name);
-  const [email, setEmail] = useState(user.email);
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const errs: Record<string, string> = {};
-
-    const nameErr = validateName(name);
-    if (nameErr) errs.name = nameErr;
-
-    const emailErr = validateEmail(email);
-    if (emailErr) errs.email = emailErr;
-    else if (
-      email.toLowerCase() !== user.email.toLowerCase() &&
-      getUserByEmail(email)
-    ) {
-      errs.email = "Email này đã được sử dụng";
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const validationError = validateName(name);
+    if (validationError) {
+      setError(validationError);
+      return;
     }
 
-    setErrors(errs);
-    if (Object.keys(errs).length > 0) return;
-
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 400));
+    setError("");
 
-    const emailChanged = email.toLowerCase() !== user.email.toLowerCase();
-    const updated = updateUser(user.id, {
-      name: name.trim(),
-      email: email.trim().toLowerCase(),
-      ...(emailChanged ? { emailVerified: false } : {}),
-    });
-
-    if (updated) onUpdate(updated);
-    setSuccess(true);
-    setTimeout(() => setSuccess(false), 3000);
-    setLoading(false);
+    try {
+      const updated = await updateProfile({ name: name.trim() });
+      onUpdate(updated);
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 3000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Không thể cập nhật hồ sơ");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <form onSubmit={submit} className="space-y-4">
       <div>
-        <label className="block text-sm text-zinc-300 mb-1.5">Họ và tên</label>
+        <label className="mb-1.5 block text-sm font-medium text-slate-700">Họ và tên</label>
         <input
           value={name}
-          onChange={(e) => {
-            setName(e.target.value);
-            setErrors((p) => ({ ...p, name: "" }));
+          onChange={(event) => {
+            setName(event.target.value);
+            setError("");
           }}
-          className="w-full px-4 py-2.5 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-blue-500 transition"
+          className="input"
         />
-        {errors.name && (
-          <p className="text-red-400 text-xs mt-1">{errors.name}</p>
-        )}
       </div>
 
       <div>
-        <label className="block text-sm text-zinc-300 mb-1.5">Email</label>
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => {
-            setEmail(e.target.value);
-            setErrors((p) => ({ ...p, email: "" }));
-          }}
-          className="w-full px-4 py-2.5 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-blue-500 transition"
-        />
-        {errors.email && (
-          <p className="text-red-400 text-xs mt-1">{errors.email}</p>
-        )}
-        {email.toLowerCase() !== user.email.toLowerCase() && (
-          <p className="text-yellow-500 text-xs mt-1">
-            ⚠ Đổi email sẽ yêu cầu xác nhận lại
-          </p>
-        )}
+        <label className="mb-1.5 block text-sm font-medium text-slate-700">Email</label>
+        <input value={user.email} readOnly className="input cursor-not-allowed bg-slate-50 text-slate-500" />
+        <p className="mt-1 text-xs text-slate-500">Email được xác thực bằng OTP khi tạo tài khoản.</p>
       </div>
 
-      {success && (
-        <p className="text-green-400 text-sm bg-green-950/30 border border-green-900/50 rounded-lg px-3 py-2">
-          ✓ Đã lưu thay đổi
-        </p>
-      )}
+      {error && <p className="rounded-2xl bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>}
+      {success && <p className="rounded-2xl bg-emerald-50 px-3 py-2 text-sm text-emerald-700">Đã lưu thay đổi</p>}
 
-      <button
-        type="submit"
-        disabled={loading}
-        className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-60 text-white py-2.5 rounded-lg font-medium transition"
-      >
+      <button type="submit" disabled={loading} className="primary-button w-full">
         {loading ? "Đang lưu..." : "Lưu thay đổi"}
       </button>
     </form>
   );
 }
 
-// ─── Tab: Đổi mật khẩu ──────────────────────────────────────────────────────
 function PasswordTab({
   user,
   onUpdate,
@@ -203,140 +157,101 @@ function PasswordTab({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [showPw, setShowPw] = useState(false);
-
+  const [showPassword, setShowPassword] = useState(false);
   const strength = getPasswordStrength(form.next);
 
-  const set = (field: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
-    setForm((p) => ({ ...p, [field]: e.target.value }));
-    setErrors((p) => ({ ...p, [field]: "" }));
+  const setField = (field: keyof typeof form) => (event: React.ChangeEvent<HTMLInputElement>) => {
+    setForm((current) => ({ ...current, [field]: event.target.value }));
+    setErrors((current) => ({ ...current, [field]: "" }));
   };
 
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const errs: Record<string, string> = {};
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const nextErrors: Record<string, string> = {};
 
-    if (!form.current) errs.current = "Vui lòng nhập mật khẩu hiện tại";
-    else if (!verifyPassword(form.current, user.passwordHash))
-      errs.current = "Mật khẩu hiện tại không đúng";
+    if (!form.current) nextErrors.current = "Vui lòng nhập mật khẩu hiện tại";
 
-    const pwErr = validatePassword(form.next);
-    if (pwErr) errs.next = pwErr;
-    else if (form.next === form.current)
-      errs.next = "Mật khẩu mới phải khác mật khẩu cũ";
+    const passwordError = validatePassword(form.next);
+    if (passwordError) nextErrors.next = passwordError;
+    else if (form.current === form.next) nextErrors.next = "Mật khẩu mới phải khác mật khẩu cũ";
 
-    if (!form.confirm) errs.confirm = "Vui lòng xác nhận mật khẩu mới";
-    else if (form.confirm !== form.next) errs.confirm = "Mật khẩu không khớp";
+    if (!form.confirm) nextErrors.confirm = "Vui lòng xác nhận mật khẩu mới";
+    else if (form.confirm !== form.next) nextErrors.confirm = "Mật khẩu không khớp";
 
-    setErrors(errs);
-    if (Object.keys(errs).length > 0) return;
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
 
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 400));
 
-    const updated = updateUser(user.id, {
-      passwordHash: hashPassword(form.next),
-    });
-    if (updated) onUpdate(updated);
-    setSuccess(true);
-    setForm({ current: "", next: "", confirm: "" });
-    setTimeout(() => setSuccess(false), 3000);
-    setLoading(false);
+    try {
+      await changePassword({
+        email: user.email,
+        currentPassword: form.current,
+        nextPassword: form.next,
+      });
+      onUpdate({ ...user });
+      setSuccess(true);
+      setForm({ current: "", next: "", confirm: "" });
+      setTimeout(() => setSuccess(false), 3000);
+    } catch (err) {
+      setErrors({ current: err instanceof Error ? err.message : "Không thể đổi mật khẩu" });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <form onSubmit={submit} className="space-y-4">
       <div>
-        <label className="block text-sm text-zinc-300 mb-1.5">
-          Mật khẩu hiện tại
-        </label>
+        <label className="mb-1.5 block text-sm font-medium text-slate-700">Mật khẩu hiện tại</label>
         <div className="relative">
-          <input
-            type={showPw ? "text" : "password"}
-            value={form.current}
-            onChange={set("current")}
-            className="w-full px-4 py-2.5 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-blue-500 transition pr-11"
-          />
+          <input type={showPassword ? "text" : "password"} value={form.current} onChange={setField("current")} className="input pr-12" />
           <button
             type="button"
-            onClick={() => setShowPw(!showPw)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 text-xs"
+            onClick={() => setShowPassword((current) => !current)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-500"
           >
-            {showPw ? "Ẩn" : "Hiện"}
+            {showPassword ? "Ẩn" : "Hiện"}
           </button>
         </div>
-        {errors.current && (
-          <p className="text-red-400 text-xs mt-1">{errors.current}</p>
-        )}
+        {errors.current && <p className="mt-1 text-xs text-rose-600">{errors.current}</p>}
       </div>
 
       <div>
-        <label className="block text-sm text-zinc-300 mb-1.5">
-          Mật khẩu mới
-        </label>
-        <input
-          type={showPw ? "text" : "password"}
-          value={form.next}
-          onChange={set("next")}
-          className="w-full px-4 py-2.5 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-blue-500 transition"
-        />
+        <label className="mb-1.5 block text-sm font-medium text-slate-700">Mật khẩu mới</label>
+        <input type={showPassword ? "text" : "password"} value={form.next} onChange={setField("next")} className="input" />
         {form.next && (
           <div className="mt-2">
-            <div className="flex gap-1 mb-1">
-              {[0, 1, 2, 3].map((i) => (
+            <div className="mb-1 flex gap-1">
+              {[0, 1, 2, 3].map((item) => (
                 <div
-                  key={i}
-                  className="flex-1 h-1 rounded-full transition-all"
-                  style={{
-                    backgroundColor:
-                      i < strength.score ? strength.color : "#3f3f46",
-                  }}
+                  key={item}
+                  className="h-1 flex-1 rounded-full transition-all"
+                  style={{ backgroundColor: item < strength.score ? strength.color : "#d4d4d8" }}
                 />
               ))}
             </div>
-            <p className="text-xs" style={{ color: strength.color }}>
-              {strength.label}
-            </p>
+            <p className="text-xs" style={{ color: strength.color }}>{strength.label}</p>
           </div>
         )}
-        {errors.next && (
-          <p className="text-red-400 text-xs mt-1">{errors.next}</p>
-        )}
+        {errors.next && <p className="mt-1 text-xs text-rose-600">{errors.next}</p>}
       </div>
 
       <div>
-        <label className="block text-sm text-zinc-300 mb-1.5">
-          Xác nhận mật khẩu mới
-        </label>
-        <input
-          type={showPw ? "text" : "password"}
-          value={form.confirm}
-          onChange={set("confirm")}
-          className="w-full px-4 py-2.5 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-blue-500 transition"
-        />
-        {errors.confirm && (
-          <p className="text-red-400 text-xs mt-1">{errors.confirm}</p>
-        )}
+        <label className="mb-1.5 block text-sm font-medium text-slate-700">Xác nhận mật khẩu mới</label>
+        <input type={showPassword ? "text" : "password"} value={form.confirm} onChange={setField("confirm")} className="input" />
+        {errors.confirm && <p className="mt-1 text-xs text-rose-600">{errors.confirm}</p>}
       </div>
 
-      {success && (
-        <p className="text-green-400 text-sm bg-green-950/30 border border-green-900/50 rounded-lg px-3 py-2">
-          ✓ Đã đổi mật khẩu thành công
-        </p>
-      )}
+      {success && <p className="rounded-2xl bg-emerald-50 px-3 py-2 text-sm text-emerald-700">Đã đổi mật khẩu thành công</p>}
 
-      <button
-        type="submit"
-        disabled={loading}
-        className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-60 text-white py-2.5 rounded-lg font-medium transition"
-      >
+      <button type="submit" disabled={loading} className="primary-button w-full">
         {loading ? "Đang lưu..." : "Đổi mật khẩu"}
       </button>
     </form>
   );
 }
 
-// ─── Tab: Avatar ─────────────────────────────────────────────────────────────
 function AvatarTab({
   user,
   onUpdate,
@@ -345,105 +260,107 @@ function AvatarTab({
   onUpdate: (u: User) => void;
 }) {
   const [preview, setPreview] = useState<string | null>(user.avatar || null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [error, setError] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const handleFile = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
     if (!file) return;
 
     if (file.size > 2 * 1024 * 1024) {
-      alert("Ảnh phải nhỏ hơn 2MB");
+      setError("Ảnh phải nhỏ hơn 2MB");
       return;
     }
 
+    setSelectedFile(file);
+    setError("");
     const reader = new FileReader();
     reader.onload = () => setPreview(reader.result as string);
     reader.readAsDataURL(file);
   };
 
   const save = async () => {
-    if (!preview) return;
+    if (!selectedFile) return;
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 400));
-    const updated = updateUser(user.id, { avatar: preview });
-    if (updated) onUpdate(updated);
-    setSuccess(true);
-    setTimeout(() => setSuccess(false), 3000);
-    setLoading(false);
+    setError("");
+
+    try {
+      const updated = await uploadAvatar(selectedFile);
+      onUpdate(updated);
+      setSelectedFile(null);
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 3000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Không thể cập nhật avatar");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const remove = async () => {
     setLoading(true);
-    const updated = updateUser(user.id, { avatar: undefined });
-    if (updated) onUpdate(updated);
-    setPreview(null);
-    setLoading(false);
+    setError("");
+
+    try {
+      const updated = await removeAvatar();
+      onUpdate(updated);
+      setPreview(null);
+      setSelectedFile(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Không thể xóa avatar");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const initials = user.name
     .split(" ")
-    .map((w) => w[0])
+    .map((word) => word[0])
     .join("")
     .toUpperCase()
     .slice(0, 2);
 
   return (
     <div className="space-y-6 text-center">
-      {/* Avatar preview */}
       <div className="flex justify-center">
         {preview ? (
-          <img
-            src={preview}
-            alt="avatar"
-            className="w-24 h-24 rounded-full object-cover border-4 border-zinc-700"
-          />
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={preview} alt="avatar" className="h-24 w-24 rounded-full object-cover ring-4 ring-rose-100" />
         ) : (
-          <div className="w-24 h-24 rounded-full bg-blue-600 flex items-center justify-center text-white text-3xl font-bold border-4 border-zinc-700">
+          <div className="flex h-24 w-24 items-center justify-center rounded-full border-4 border-rose-100 bg-linear-to-br from-[#efb0c9] to-[#a1c9f1] text-3xl font-bold text-white">
             {initials}
           </div>
         )}
       </div>
 
       <div className="space-y-3">
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/*"
-          onChange={handleFile}
-          className="hidden"
-        />
+        <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} className="hidden" />
         <button
           onClick={() => fileRef.current?.click()}
-          className="w-full border border-zinc-700 hover:border-zinc-500 text-zinc-300 hover:text-white py-2.5 rounded-lg text-sm transition"
+          className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
         >
           Chọn ảnh từ máy tính
         </button>
-        <p className="text-zinc-500 text-xs">PNG, JPG, GIF tối đa 2MB</p>
+        <p className="text-xs text-slate-500">PNG, JPG, GIF tối đa 2MB</p>
       </div>
 
-      {success && (
-        <p className="text-green-400 text-sm bg-green-950/30 border border-green-900/50 rounded-lg px-3 py-2">
-          ✓ Đã cập nhật ảnh đại diện
-        </p>
-      )}
+      {error && <p className="rounded-2xl bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>}
+      {success && <p className="rounded-2xl bg-emerald-50 px-3 py-2 text-sm text-emerald-700">Đã cập nhật ảnh đại diện</p>}
 
       <div className="flex gap-3">
-        {preview && preview !== user.avatar && (
-          <button
-            onClick={save}
-            disabled={loading}
-            className="flex-1 bg-blue-600 hover:bg-blue-500 disabled:opacity-60 text-white py-2.5 rounded-lg text-sm font-medium transition"
-          >
+        {selectedFile && (
+          <button onClick={() => void save()} disabled={loading} className="primary-button flex-1">
             {loading ? "Đang lưu..." : "Lưu ảnh"}
           </button>
         )}
         {(user.avatar || preview) && (
           <button
-            onClick={remove}
+            onClick={() => void remove()}
             disabled={loading}
-            className="flex-1 border border-red-800 text-red-400 hover:bg-red-950/30 py-2.5 rounded-lg text-sm transition"
+            className="flex-1 rounded-2xl border border-rose-200 bg-rose-50 py-2.5 text-sm font-medium text-rose-700 transition hover:bg-rose-100"
           >
             Xóa ảnh
           </button>

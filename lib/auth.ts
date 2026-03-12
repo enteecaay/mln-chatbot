@@ -1,30 +1,30 @@
+import type { User as SupabaseUser } from "@supabase/supabase-js";
+
+import type { ProfileRow } from "@/types/database";
+import { createClient } from "@/utils/supabase/client";
+
+export type UserRole = "user" | "admin";
+
 export type User = {
   id: string;
-  name: string;
   email: string;
-  passwordHash: string;
-  avatar?: string;
+  name: string;
+  avatar?: string | null;
   emailVerified: boolean;
-  verificationCode?: string;
+  role: UserRole;
+  isBanned: boolean;
+  banExpiresAt?: string | null;
+  banReason?: string | null;
   createdAt: string;
+  messageCount: number;
 };
 
-export function hashPassword(password: string): string {
-  let hash = 0;
-  const salted = "chatbot_salt_2024_" + password;
-  for (let i = 0; i < salted.length; i++) {
-    const char = salted.charCodeAt(i);
-    hash = (hash << 5) - hash + char;
-    hash = hash & hash;
-  }
-  return Math.abs(hash).toString(36) + salted.length.toString(36);
-}
+export type PendingSignup = {
+  email: string;
+  name: string;
+  password: string;
+};
 
-export function verifyPassword(password: string, hash: string): boolean {
-  return hashPassword(password) === hash;
-}
-
-// ─── Validation ─────────────────────────────────────────────────────────────
 export function validateEmail(email: string): string | null {
   if (!email) return "Email không được để trống";
   const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -42,7 +42,7 @@ export function validatePassword(password: string): string | null {
 }
 
 export function getPasswordStrength(password: string): {
-  score: number; // 0-4
+  score: number;
   label: string;
   color: string;
 } {
@@ -65,82 +65,223 @@ export function validateName(name: string): string | null {
   return null;
 }
 
-// ─── Verification code ───────────────────────────────────────────────────────
-export function generateVerificationCode(): string {
-  return Math.floor(100000 + Math.random() * 900000).toString();
-}
-
-// ─── localStorage helpers ────────────────────────────────────────────────────
-const USERS_KEY = "chatbot_users";
-const SESSION_KEY = "chatbot_session";
-
-export function getUsers(): User[] {
-  try {
-    return JSON.parse(localStorage.getItem(USERS_KEY) || "[]");
-  } catch {
-    return [];
-  }
-}
-
-export function saveUsers(users: User[]): void {
-  localStorage.setItem(USERS_KEY, JSON.stringify(users));
-}
-
-export function getUserByEmail(email: string): User | null {
+export function createChatTitle(question: string): string {
   return (
-    getUsers().find((u) => u.email.toLowerCase() === email.toLowerCase()) ??
-    null
+    question.trim().replace(/\s+/g, " ").split(" ").slice(0, 6).join(" ") ||
+    "Cuộc trò chuyện mới"
   );
 }
 
-export function createUser(data: {
-  name: string;
-  email: string;
-  password: string;
-}): User {
-  const users = getUsers();
-  const code = generateVerificationCode();
-  const user: User = {
-    id: crypto.randomUUID(),
-    name: data.name.trim(),
-    email: data.email.trim().toLowerCase(),
-    passwordHash: hashPassword(data.password),
-    emailVerified: false,
-    verificationCode: code,
-    createdAt: new Date().toISOString(),
+export function isBanActive(user: Pick<User, "isBanned" | "banExpiresAt">): boolean {
+  if (!user.isBanned) return false;
+  if (!user.banExpiresAt) return true;
+  return new Date(user.banExpiresAt).getTime() > Date.now();
+}
+
+export function formatBanMessage(user: Pick<User, "banExpiresAt" | "banReason">): string {
+  if (!user.banExpiresAt) {
+    return user.banReason
+      ? `Tài khoản của bạn đã bị cấm chat vĩnh viễn. Lý do: ${user.banReason}`
+      : "Tài khoản của bạn đã bị cấm chat vĩnh viễn.";
+  }
+
+  const until = new Date(user.banExpiresAt).toLocaleString("vi-VN");
+  return user.banReason
+    ? `Tài khoản của bạn đang bị cấm chat đến ${until}. Lý do: ${user.banReason}`
+    : `Tài khoản của bạn đang bị cấm chat đến ${until}.`;
+}
+
+function toAppUser(authUser: SupabaseUser, profile: ProfileRow): User {
+  return {
+    id: authUser.id,
+    email: authUser.email || "",
+    name: profile.name,
+    avatar: profile.avatar_url,
+    emailVerified: Boolean(authUser.email_confirmed_at),
+    role: profile.role,
+    isBanned: profile.is_banned,
+    banExpiresAt: profile.ban_expires_at,
+    banReason: profile.ban_reason,
+    createdAt: profile.created_at,
+    messageCount: profile.message_count,
   };
-  users.push(user);
-  saveUsers(users);
+}
+
+export async function getCurrentUser(): Promise<User | null> {
+  const supabase = createClient();
+  const {
+    data: { user: authUser },
+    error,
+  } = await supabase.auth.getUser();
+
+  if (error || !authUser) return null;
+
+  const { data } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("id", authUser.id)
+    .single();
+  let profile = data as ProfileRow | null;
+
+  if (!profile) {
+    // Recover from accidental profile deletion while auth.users still exists.
+    await fetch("/api/auth/ensure-profile", { method: "POST" });
+
+    const { data: repairedProfile } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", authUser.id)
+      .single();
+
+    profile = repairedProfile as ProfileRow | null;
+  }
+
+  if (!profile) return null;
+  return toAppUser(authUser, profile);
+}
+
+export async function signIn(email: string, password: string): Promise<User> {
+  const supabase = createClient();
+  const { error } = await supabase.auth.signInWithPassword({ email, password });
+
+  if (error) {
+    throw new Error(
+      error.message === "Invalid login credentials"
+        ? "Email hoặc mật khẩu không đúng"
+        : error.message,
+    );
+  }
+
+  const user = await getCurrentUser();
+  if (!user) {
+    throw new Error("Không thể tải hồ sơ người dùng");
+  }
+
+  if (isBanActive(user)) {
+    await supabase.auth.signOut();
+    throw new Error(formatBanMessage(user));
+  }
+
   return user;
 }
 
-export function updateUser(id: string, updates: Partial<User>): User | null {
-  const users = getUsers();
-  const idx = users.findIndex((u) => u.id === id);
-  if (idx === -1) return null;
-  users[idx] = { ...users[idx], ...updates };
-  saveUsers(users);
-  // Cập nhật session nếu đang đăng nhập
-  const session = getSession();
-  if (session?.id === id) {
-    saveSession(users[idx]);
-  }
-  return users[idx];
+export async function signOut(): Promise<void> {
+  const supabase = createClient();
+  await supabase.auth.signOut();
 }
 
-// ─── Session ─────────────────────────────────────────────────────────────────
-export function getSession(): User | null {
-  try {
-    return JSON.parse(localStorage.getItem(SESSION_KEY) || "null");
-  } catch {
-    return null;
+export async function startSignup(payload: PendingSignup): Promise<void> {
+  const response = await fetch("/api/auth/signup", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  const body = (await response.json().catch(() => ({}))) as { error?: string };
+  if (!response.ok) {
+    throw new Error(body.error || "Không thể tạo tài khoản");
   }
 }
 
-export function saveSession(user: User): void {
-  localStorage.setItem(SESSION_KEY, JSON.stringify(user));
+export async function resendSignupOtp(email: string): Promise<void> {
+  const response = await fetch("/api/auth/resend-otp", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+
+  const body = (await response.json().catch(() => ({}))) as { error?: string };
+  if (!response.ok) {
+    throw new Error(body.error || "Không thể gửi lại OTP");
+  }
 }
 
-export function clearSession(): void {
-  localStorage.removeItem(SESSION_KEY);
+export async function verifySignupOtp(
+  pending: PendingSignup,
+  otp: string,
+): Promise<User | null> {
+  const response = await fetch("/api/auth/verify-otp", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email: pending.email, otp }),
+  });
+
+  const body = (await response.json().catch(() => ({}))) as { error?: string };
+  if (!response.ok) {
+    throw new Error(body.error || "OTP không hợp lệ");
+  }
+
+  // No password when session was restored from storage — caller handles sign-in
+  if (!pending.password) return null;
+
+  return signIn(pending.email, pending.password);
+}
+
+export async function updateProfile(data: { name: string }): Promise<User> {
+  const response = await fetch("/api/profile", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+
+  const body = (await response.json()) as { error?: string; user?: User };
+  if (!response.ok || !body.user) {
+    throw new Error(body.error || "Không thể cập nhật hồ sơ");
+  }
+
+  return body.user;
+}
+
+export async function uploadAvatar(file: File): Promise<User> {
+  const formData = new FormData();
+  formData.set("file", file);
+
+  const response = await fetch("/api/avatar", {
+    method: "POST",
+    body: formData,
+  });
+
+  const body = (await response.json()) as { error?: string; user?: User };
+  if (!response.ok || !body.user) {
+    throw new Error(body.error || "Không thể cập nhật ảnh đại diện");
+  }
+
+  return body.user;
+}
+
+export async function removeAvatar(): Promise<User> {
+  const response = await fetch("/api/avatar", {
+    method: "DELETE",
+  });
+
+  const body = (await response.json()) as { error?: string; user?: User };
+  if (!response.ok || !body.user) {
+    throw new Error(body.error || "Không thể xóa ảnh đại diện");
+  }
+
+  return body.user;
+}
+
+export async function changePassword(params: {
+  email: string;
+  currentPassword: string;
+  nextPassword: string;
+}): Promise<void> {
+  const supabase = createClient();
+  const reauth = await supabase.auth.signInWithPassword({
+    email: params.email,
+    password: params.currentPassword,
+  });
+
+  if (reauth.error) {
+    throw new Error("Mật khẩu hiện tại không đúng");
+  }
+
+  const { error } = await supabase.auth.updateUser({
+    password: params.nextPassword,
+  });
+
+  if (error) {
+    throw new Error(error.message || "Không thể đổi mật khẩu");
+  }
 }

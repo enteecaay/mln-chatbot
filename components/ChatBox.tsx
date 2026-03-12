@@ -1,189 +1,234 @@
-"use client"
+"use client";
 
-import { useState, useRef } from "react"
-import ReactMarkdown from "react-markdown"
+import { useEffect, useRef, useState } from "react";
+import { LoaderCircle, SendHorizonal } from "lucide-react";
+import ReactMarkdown from "react-markdown";
 
-// Define proper Message type
-interface Message {
-  role: "user" | "assistant"
-  content: string
-}
+import { streamChat } from "@/lib/chat";
+import { createClient } from "@/utils/supabase/client";
+import type { MessageRow } from "@/types/database";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000"
+type ChatBoxProps = {
+  currentUserId: string;
+  currentUserName: string;
+  currentUserAvatar: string | null;
+  selectedSessionId: string | null;
+  onSessionActivity: () => void;
+};
 
-export default function ChatBox() {
+type Message = Pick<MessageRow, "content" | "role" | "id">;
 
-  const [messages, setMessages] = useState<Message[]>([])
-  const [input, setInput] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
-  const bottomRef = useRef<HTMLDivElement>(null)
+export default function ChatBox({
+  currentUserId,
+  currentUserName,
+  currentUserAvatar,
+  selectedSessionId,
+  onSessionActivity,
+}: ChatBoxProps) {
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [botAvatarBroken, setBotAvatarBroken] = useState(false);
+  const [userAvatarBroken, setUserAvatarBroken] = useState(false);
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, isLoading]);
+
+  useEffect(() => {
+    const loadMessages = async () => {
+      if (!selectedSessionId) {
+        setMessages([]);
+        return;
+      }
+
+      const supabase = createClient();
+      const { data } = await supabase
+        .from("messages")
+        .select("id, role, content")
+        .eq("session_id", selectedSessionId)
+        .eq("user_id", currentUserId)
+        .order("created_at", { ascending: true });
+
+      setMessages((data || []) as Message[]);
+    };
+
+    void loadMessages();
+  }, [currentUserId, selectedSessionId]);
 
   const sendMessage = async () => {
-    if (!input.trim() || isLoading) return
+    if (!selectedSessionId) {
+      setError("Hãy tạo hoặc chọn một cuộc trò chuyện trước khi gửi câu hỏi.");
+      return;
+    }
 
-    const userMessage: Message = { role: "user", content: input }
-    const botMessage: Message = { role: "assistant", content: "" }
+    if (!input.trim() || isLoading) return;
 
-    // Fix: Properly type the messages
-    setMessages(prev => [...prev, userMessage, botMessage])
-    setInput("")
-    setIsLoading(true)
+    const question = input.trim();
+    const userMessage: Message = {
+      id: `temp-user-${Date.now()}`,
+      role: "user",
+      content: question,
+    };
+    const botMessage: Message = {
+      id: `temp-bot-${Date.now()}`,
+      role: "assistant",
+      content: "",
+    };
+
+    setMessages((prev) => [...prev, userMessage, botMessage]);
+    setInput("");
+    setIsLoading(true);
+    setError("");
 
     try {
-      const response = await fetch(`${API_BASE_URL}/chat`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          question: input,
-          session_id: "default-session"
-        }),
-      })
+      let accumulated = "";
 
-      if (!response.ok) throw new Error("Failed to send message")
+      await streamChat(question, selectedSessionId, (token) => {
+        accumulated += token;
+        setMessages((prev) => {
+          const next = [...prev];
+          next[next.length - 1] = {
+            ...botMessage,
+            content: accumulated,
+          };
+          return next;
+        });
+      });
 
-      const reader = response.body?.getReader()
-      if (!reader) throw new Error("No response body")
-
-      let accumulatedResponse = ""
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-
-        const chunk = new TextDecoder().decode(value)
-        const lines = chunk.split("\n")
-
-        for (const line of lines) {
-          if (line.startsWith("data: ")) {
-            try {
-              const data = JSON.parse(line.slice(6))
-              if (data.token) {
-                accumulatedResponse += data.token
-                setMessages(prev => {
-                  const newMessages = [...prev]
-                  newMessages[newMessages.length - 1] = {
-                    role: "assistant",
-                    content: accumulatedResponse
-                  }
-                  return newMessages
-                })
-              }
-            } catch (e) {
-              // Skip invalid JSON
-            }
-          }
-        }
-      }
-    } catch (error) {
-      console.error("Error:", error)
-      setMessages(prev => {
-        const newMessages = [...prev]
-        newMessages[newMessages.length - 1] = {
-          role: "assistant",
-          content: "Xin lỗi, đã có lỗi xảy ra. Vui lòng thử lại."
-        }
-        return newMessages
-      })
+      onSessionActivity();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Đã có lỗi xảy ra.";
+      setError(message);
+      setMessages((prev) => {
+        const next = [...prev];
+        next[next.length - 1] = {
+          ...botMessage,
+          content: message,
+        };
+        return next;
+      });
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
+  };
+
+  if (!selectedSessionId) {
+    return (
+      <div className="flex min-h-[70vh] flex-1 items-center justify-center rounded-4xl border border-white/60 bg-white/72 p-10 text-center shadow-[0_24px_80px_rgba(93,126,216,0.12)] backdrop-blur-xl">
+        <div className="max-w-md">
+          <h2 className="text-3xl font-semibold text-slate-900">Chưa có cuộc trò chuyện nào được chọn</h2>
+          <p className="mt-3 text-sm leading-6 text-slate-600">Tạo một phiên chat mới ở cột bên trái để bắt đầu đặt câu hỏi về Chủ nghĩa Mác - Lênin.</p>
+        </div>
+      </div>
+    );
   }
 
+  const renderAvatar = (role: "user" | "assistant") => {
+    if (role === "assistant") {
+      return (
+        <div className="relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-linear-to-br from-slate-200 to-slate-300 text-[10px] font-semibold text-slate-700 shadow-sm">
+          {!botAvatarBroken ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src="/bot.png"
+              alt="bot avatar"
+              className="h-full w-full object-cover"
+              onError={() => setBotAvatarBroken(true)}
+            />
+          ) : (
+            <span>AI</span>
+          )}
+        </div>
+      );
+    }
+
+    if (currentUserAvatar && !userAvatarBroken) {
+      return (
+        <div className="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-slate-100 shadow-sm">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={currentUserAvatar}
+            alt="user avatar"
+            className="h-full w-full object-cover"
+            onError={() => setUserAvatarBroken(true)}
+          />
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-slate-100 text-xs font-semibold text-slate-600">
+        {currentUserName.slice(0, 1).toUpperCase()}
+      </div>
+    );
+  };
+
   return (
-    <div className="flex flex-col h-screen bg-[#0b0b0f] text-white">
-
-      {/* HEADER */}
-
-      <div className="border-b border-zinc-800 p-4 text-center text-lg font-semibold">
-        Marx-Lenin AI
+    <div className="flex min-h-[70vh] flex-1 flex-col overflow-hidden rounded-4xl border border-white/60 bg-white/72 shadow-[0_24px_80px_rgba(93,126,216,0.12)] backdrop-blur-xl">
+      <div className="border-b border-slate-100 px-6 py-4">
+        <h2 className="text-lg font-semibold text-slate-900">Marx-Lenin AI</h2>
+        <p className="text-sm text-slate-500">Lịch sử chat được lưu tự động theo từng phiên.</p>
       </div>
 
-      {/* CHAT AREA */}
-
-      <div className="flex-1 overflow-y-auto px-6 py-10 max-w-3xl w-full mx-auto space-y-8">
-
+      <div className="flex-1 space-y-6 overflow-y-auto px-6 py-8">
         {messages.length === 0 && (
-
-          <div className="text-center mt-20 space-y-4 opacity-80">
-
-            <h1 className="text-3xl font-semibold">
-              Marx-Lenin AI
-            </h1>
-
-            <p className="text-zinc-400">
-              Hỏi bất kỳ câu hỏi nào về Chủ nghĩa Mác-Lênin
-            </p>
-
+          <div className="mt-12 rounded-[28px] border border-dashed border-[#efb0c9] bg-[#fff6fa] p-8 text-center">
+            <h3 className="text-2xl font-semibold text-slate-900">Bắt đầu cuộc trò chuyện</h3>
+            <p className="mt-2 text-sm leading-6 text-slate-600">Đặt câu hỏi đầu tiên. Tiêu đề đoạn chat sẽ tự động lấy từ 5-6 từ đầu tiên của câu hỏi này.</p>
           </div>
-
         )}
 
-        {messages.map((msg, i) => (
+        {messages.map((message) => (
+          <div key={message.id} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
+            <div className={`flex max-w-4xl items-end gap-1 ${message.role === "user" ? "flex-row-reverse" : "flex-row"}`}>
+              {renderAvatar(message.role)}
 
-          <div
-            key={i}
-            className={`flex ${msg.role === "user"
-              ? "justify-end"
-              : "justify-start"
-              }`}
-          >
-
-            <div
-              className={`px-5 py-4 rounded-xl max-w-2xl leading-relaxed ${msg.role === "user"
-                ? "bg-blue-600"
-                : "bg-zinc-900"
-                }`}
-            >
-
-              <ReactMarkdown>
-                {msg.content}
-              </ReactMarkdown>
-
+              <div>
+                <p className={`mb-1 text-xs font-medium text-slate-500 ${message.role === "user" ? "text-right" : "text-left"}`}>
+                  {message.role === "user" ? currentUserName : "MLN Chatbot"}
+                </p>
+                <div
+                  className={`max-w-3xl rounded-3xl px-5 py-4 text-sm leading-7 shadow-sm ${message.role === "user"
+                    ? "bg-linear-to-r from-[#b65c80] to-[#5d7ed8] text-white"
+                    : "border border-slate-100 bg-slate-50 text-slate-700"
+                    }`}
+                >
+                  <ReactMarkdown>{message.content}</ReactMarkdown>
+                </div>
+              </div>
             </div>
-
           </div>
-
         ))}
 
         {isLoading && (
-
-          <div className="text-zinc-500 text-sm">
+          <div className="inline-flex items-center gap-2 rounded-full bg-slate-50 px-4 py-2 text-sm text-slate-500">
+            <LoaderCircle className="h-4 w-4 animate-spin" />
             AI đang trả lời...
           </div>
-
         )}
 
         <div ref={bottomRef} />
-
       </div>
 
-      {/* INPUT */}
-
-      <div className="border-t border-zinc-800 p-4">
-
-        <div className="max-w-3xl mx-auto flex gap-3">
-
+      <div className="border-t border-slate-100 px-6 py-5">
+        {error && <p className="mb-3 rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</p>}
+        <div className="flex gap-2">
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-            placeholder="Hỏi về chủ nghĩa Mác-Lênin..."
-            className="flex-1 bg-zinc-900 px-4 py-3 rounded-xl outline-none"
+            onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && (e.preventDefault(), void sendMessage())}
+            placeholder="Hỏi về chủ nghĩa Mác - Lênin..."
+            className="input flex-1"
           />
-
-          <button
-            onClick={sendMessage}
-            className="bg-blue-600 px-6 rounded-xl hover:bg-blue-700 transition"
-          >
-            Ask
+          <button onClick={() => void sendMessage()} disabled={isLoading || !input.trim()} className="primary-button px-5">
+            <SendHorizonal className="h-4 w-4" />
+            Gửi
           </button>
-
         </div>
-
       </div>
-
     </div>
-  )
+  );
 }
