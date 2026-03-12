@@ -1,22 +1,43 @@
-import { Resend } from "resend";
+import nodemailer from "nodemailer";
 
-function getResendClient(): Resend {
-  const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) {
-    throw new Error("RESEND_API_KEY chưa được cấu hình");
+let transporter: nodemailer.Transporter | null = null;
+
+function getRequiredEnv(name: string): string {
+  const value = process.env[name]?.trim();
+  if (!value) {
+    throw new Error(`${name} chưa được cấu hình`);
   }
 
-  return new Resend(apiKey);
+  return value;
+}
+
+function getTransporter(): nodemailer.Transporter {
+  if (transporter) return transporter;
+
+  const user = getRequiredEnv("GMAIL_USER");
+  const pass = getRequiredEnv("GMAIL_APP_PASSWORD");
+
+  transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user,
+      pass,
+    },
+  });
+
+  return transporter;
 }
 
 function getFromEmail(): string {
-  return process.env.RESEND_FROM_EMAIL || "MLN Chatbot <onboarding@resend.dev>";
+  const configured = process.env.MAIL_FROM?.trim();
+  if (configured) return configured;
+  return `MLN Chatbot <${getRequiredEnv("GMAIL_USER")}>`;
 }
 
 export async function sendOtpEmail(email: string, code: string, name: string): Promise<void> {
-  const resend = getResendClient();
+  const mailer = getTransporter();
 
-  await resend.emails.send({
+  await mailer.sendMail({
     from: getFromEmail(),
     to: email,
     subject: "Ma xac thuc dang ky MLN Chatbot",
@@ -37,9 +58,9 @@ export async function sendBanEmail(params: {
   durationLabel: string;
   reason?: string | null;
 }): Promise<void> {
-  const resend = getResendClient();
+  const mailer = getTransporter();
 
-  await resend.emails.send({
+  await mailer.sendMail({
     from: getFromEmail(),
     to: params.email,
     subject: "Thong bao tam khoa quyen chat",

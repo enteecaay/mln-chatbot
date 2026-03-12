@@ -147,6 +147,36 @@ NEXT_PUBLIC_API_BASE_URL=https://your-api-domain.com
 NEXT_PUBLIC_API_BASE_URL=http://mln-api:8000
 ```
 
+## OTP Email (Nodemailer + Gmail)
+
+OTP signup/resend currently uses Nodemailer with Gmail SMTP, compatible with Vercel serverless runtime.
+
+Required environment variables:
+
+- `GMAIL_USER`: Gmail address used to send OTP (example: `your-bot@gmail.com`)
+- `GMAIL_APP_PASSWORD`: 16-character Google App Password (do not use normal account password)
+- `MAIL_FROM` (optional): custom sender name/email. If omitted, default is `MLN Chatbot <GMAIL_USER>`
+
+How to get Gmail App Password:
+
+1. Enable 2-Step Verification in Google Account.
+2. Open App Passwords in Google Account security settings.
+3. Create a new app password and copy the generated 16-character value.
+
+Vercel deployment notes:
+
+1. In Vercel project, go to Settings -> Environment Variables.
+2. Add `GMAIL_USER`, `GMAIL_APP_PASSWORD`, and optionally `MAIL_FROM`.
+3. Redeploy project after updating variables.
+
+Quick local example (`.env.local`):
+
+```bash
+GMAIL_USER=your-bot@gmail.com
+GMAIL_APP_PASSWORD=abcdefghijklmnop
+MAIL_FROM=MLN Chatbot <your-bot@gmail.com>
+```
+
 ## Usage
 
 1. **Start the backend API** (see Backend API Setup above)
