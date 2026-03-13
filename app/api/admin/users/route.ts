@@ -86,10 +86,11 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   try {
     await ensureAdmin();
-    const { userId, name, role } = (await request.json()) as {
+    const { userId, name, role, avatar } = (await request.json()) as {
       userId?: string;
       name?: string;
       role?: "user" | "admin";
+      avatar?: string | null;
     };
 
     if (!userId) {
@@ -98,6 +99,27 @@ export async function PATCH(request: Request) {
 
     const nameError = validateName(name || "");
     if (nameError) return NextResponse.json({ error: nameError }, { status: 400 });
+
+    let avatarUrl: string | null = null;
+    let shouldUpdateAvatar = false;
+    if (typeof avatar === "string") {
+      shouldUpdateAvatar = true;
+      const trimmed = avatar.trim();
+      if (trimmed) {
+        try {
+          const parsed = new URL(trimmed);
+          if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+            return NextResponse.json(
+              { error: "Avatar URL phai bat dau bang http:// hoac https://" },
+              { status: 400 },
+            );
+          }
+          avatarUrl = trimmed;
+        } catch {
+          return NextResponse.json({ error: "Avatar URL khong hop le" }, { status: 400 });
+        }
+      }
+    }
 
     if (role) {
       const admin = createAdminClient();
@@ -126,12 +148,22 @@ export async function PATCH(request: Request) {
     }
 
     const admin = createAdminClient();
+    const updatePayload: {
+      name: string;
+      role: "user" | "admin";
+      avatar_url?: string | null;
+    } = {
+      name: name!.trim(),
+      role: role || "user",
+    };
+
+    if (shouldUpdateAvatar) {
+      updatePayload.avatar_url = avatarUrl;
+    }
+
     const { error } = await admin
       .from("profiles")
-      .update({
-        name: name!.trim(),
-        role: role || "user",
-      })
+      .update(updatePayload)
       .eq("id", userId);
 
     if (error) {

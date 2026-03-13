@@ -23,7 +23,6 @@ export function AuthLanding() {
   const [verifiedEmail, setVerifiedEmail] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [transitionUser, setTransitionUser] = useState<User | null>(null);
-  const [testLoading, setTestLoading] = useState(false);
   // Keep a ref so onDone callback always sees the latest user without re-creating
   const transitionUserRef = useRef<User | null>(null);
 
@@ -41,12 +40,6 @@ export function AuthLanding() {
     const u = transitionUserRef.current;
     if (u) routeByRole(u);
   }, [routeByRole]);
-
-  const runTestLoading = () => {
-    if (testLoading) return;
-    setTestLoading(true);
-    setTimeout(() => setTestLoading(false), 2500);
-  };
 
   useEffect(() => {
     const load = async () => {
@@ -111,21 +104,9 @@ export function AuthLanding() {
               <FeatureCard icon={<WalletCards className="h-5 w-5" />} title="Dashboard admin" description="Theo dõi lượt truy cập, số lượng tin nhắn, top user và quản lý cấm chat theo thời gian." />
             </div>
 
-            <div className="mt-10 flex flex-wrap items-center gap-3">
-              <div className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-5 py-3 text-sm font-medium text-white shadow-lg shadow-slate-900/10">
-                Bắt đầu ngay
-                <ArrowRight className="h-4 w-4" />
-              </div>
-
-              <button
-                type="button"
-                onClick={runTestLoading}
-                disabled={testLoading}
-                className="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white/85 px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-70"
-              >
-                <LoadingSprite size="sm" />
-                Test loading
-              </button>
+            <div className="mt-10 inline-flex items-center gap-2 rounded-full bg-slate-900 px-5 py-3 text-sm font-medium text-white shadow-lg shadow-slate-900/10">
+              Bắt đầu ngay
+              <ArrowRight className="h-4 w-4" />
             </div>
           </div>
         </section>
@@ -205,14 +186,6 @@ export function AuthLanding() {
         />
       )}
 
-      {testLoading && (
-        <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-white/45 backdrop-blur-sm">
-          <div className="inline-flex items-center gap-3 rounded-full bg-white px-5 py-3 text-sm font-medium text-slate-700 shadow-lg">
-            <LoadingSprite size="md" />
-            Đang test loading...
-          </div>
-        </div>
-      )}
     </main>
   );
 }
