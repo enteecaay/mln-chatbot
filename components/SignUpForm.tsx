@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowLeft, LoaderCircle, UserPlus } from "lucide-react";
+import { ArrowLeft, UserPlus } from "lucide-react";
 
 import {
   getPasswordStrength,
@@ -11,6 +11,7 @@ import {
   validatePassword,
   type PendingSignup,
 } from "@/lib/auth";
+import { LoadingSprite } from "@/components/LoadingSprite";
 
 export function SignUpForm({
   onRegistered,
@@ -206,7 +207,7 @@ export function SignUpForm({
         >
           {loading ? (
             <span className="inline-flex items-center gap-2">
-              <LoaderCircle className="h-4 w-4 animate-spin" />
+              <LoadingSprite size="sm" />
               Đang tạo tài khoản...
             </span>
           ) : (

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { DM_Sans, Space_Grotesk } from "next/font/google";
+import { IdleMascot } from "@/components/IdleMascot";
 import "./globals.css";
 
 const bodyFont = DM_Sans({
@@ -25,9 +26,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${bodyFont.variable} ${displayFont.variable} antialiased`}
+        className={`${bodyFont.variable} ${displayFont.variable} antialiased ` }
       >
         {children}
+        <IdleMascot />
       </body>
     </html>
   );

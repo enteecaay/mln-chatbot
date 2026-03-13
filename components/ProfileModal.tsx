@@ -13,6 +13,7 @@ import {
   validatePassword,
   type User,
 } from "@/lib/auth";
+import { LoadingSprite } from "@/components/LoadingSprite";
 
 type Tab = "info" | "password" | "avatar";
 
@@ -140,7 +141,14 @@ function InfoTab({
       {success && <p className="rounded-2xl bg-emerald-50 px-3 py-2 text-sm text-emerald-700">Đã lưu thay đổi</p>}
 
       <button type="submit" disabled={loading} className="primary-button w-full">
-        {loading ? "Đang lưu..." : "Lưu thay đổi"}
+        {loading ? (
+          <span className="inline-flex items-center gap-2">
+            <LoadingSprite size="sm" />
+            Đang lưu...
+          </span>
+        ) : (
+          "Lưu thay đổi"
+        )}
       </button>
     </form>
   );
@@ -246,7 +254,14 @@ function PasswordTab({
       {success && <p className="rounded-2xl bg-emerald-50 px-3 py-2 text-sm text-emerald-700">Đã đổi mật khẩu thành công</p>}
 
       <button type="submit" disabled={loading} className="primary-button w-full">
-        {loading ? "Đang lưu..." : "Đổi mật khẩu"}
+        {loading ? (
+          <span className="inline-flex items-center gap-2">
+            <LoadingSprite size="sm" />
+            Đang lưu...
+          </span>
+        ) : (
+          "Đổi mật khẩu"
+        )}
       </button>
     </form>
   );
@@ -353,7 +368,14 @@ function AvatarTab({
       <div className="flex gap-3">
         {selectedFile && (
           <button onClick={() => void save()} disabled={loading} className="primary-button flex-1">
-            {loading ? "Đang lưu..." : "Lưu ảnh"}
+            {loading ? (
+              <span className="inline-flex items-center gap-2">
+                <LoadingSprite size="sm" />
+                Đang lưu...
+              </span>
+            ) : (
+              "Lưu ảnh"
+            )}
           </button>
         )}
         {(user.avatar || preview) && (

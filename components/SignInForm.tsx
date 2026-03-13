@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { LoaderCircle, LogIn } from "lucide-react";
+import { LogIn } from "lucide-react";
 
 import { signIn, validateEmail, type User } from "@/lib/auth";
+import { LoadingSprite } from "@/components/LoadingSprite";
 
 export function SignInForm({
   onSignedIn,
@@ -107,7 +108,7 @@ export function SignInForm({
         <button type="submit" disabled={loading} className="primary-button w-full">
           {loading ? (
             <span className="inline-flex items-center gap-2">
-              <LoaderCircle className="h-4 w-4 animate-spin" />
+              <LoadingSprite size="sm" />
               Đang kiểm tra...
             </span>
           ) : (

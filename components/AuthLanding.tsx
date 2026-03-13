@@ -1,12 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, ShieldCheck, Sparkles, WalletCards } from "lucide-react";
 
 import { SignInForm } from "@/components/SignInForm";
 import { SignUpForm } from "@/components/SignUpForm";
 import { VerifyEmailForm } from "@/components/VerifyEmailForm";
+import { HorseTransition } from "@/components/HorseTransition";
+import { LoadingSprite } from "@/components/LoadingSprite";
 import { getCurrentUser, type PendingSignup, type User } from "@/lib/auth";
 
 type AuthView = "signin" | "signup" | "verify";
@@ -20,6 +22,10 @@ export function AuthLanding() {
   const [pendingSignup, setPendingSignup] = useState<PendingSignup | null>(null);
   const [verifiedEmail, setVerifiedEmail] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [transitionUser, setTransitionUser] = useState<User | null>(null);
+  const [testLoading, setTestLoading] = useState(false);
+  // Keep a ref so onDone callback always sees the latest user without re-creating
+  const transitionUserRef = useRef<User | null>(null);
 
   const nextPath = searchParams.get("next") || "/chat";
 
@@ -29,6 +35,18 @@ export function AuthLanding() {
     },
     [nextPath, router],
   );
+
+  // Stable callback — reads from ref, never stale
+  const handleTransitionDone = useCallback(() => {
+    const u = transitionUserRef.current;
+    if (u) routeByRole(u);
+  }, [routeByRole]);
+
+  const runTestLoading = () => {
+    if (testLoading) return;
+    setTestLoading(true);
+    setTimeout(() => setTestLoading(false), 2500);
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -63,7 +81,10 @@ export function AuthLanding() {
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top,#fff4f8_0%,#f7fbff_38%,#fff_100%)]">
-        <div className="h-10 w-10 animate-spin rounded-full border-2 border-[#b65c80] border-t-transparent" />
+        <div className="inline-flex items-center gap-3 rounded-full bg-white/80 px-4 py-3 text-sm font-medium text-slate-600 shadow-sm">
+          <LoadingSprite size="md" />
+          Đang tải...
+        </div>
       </div>
     );
   }
@@ -90,9 +111,21 @@ export function AuthLanding() {
               <FeatureCard icon={<WalletCards className="h-5 w-5" />} title="Dashboard admin" description="Theo dõi lượt truy cập, số lượng tin nhắn, top user và quản lý cấm chat theo thời gian." />
             </div>
 
-            <div className="mt-10 inline-flex items-center gap-2 rounded-full bg-slate-900 px-5 py-3 text-sm font-medium text-white shadow-lg shadow-slate-900/10">
-              Bắt đầu ngay
-              <ArrowRight className="h-4 w-4" />
+            <div className="mt-10 flex flex-wrap items-center gap-3">
+              <div className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-5 py-3 text-sm font-medium text-white shadow-lg shadow-slate-900/10">
+                Bắt đầu ngay
+                <ArrowRight className="h-4 w-4" />
+              </div>
+
+              <button
+                type="button"
+                onClick={runTestLoading}
+                disabled={testLoading}
+                className="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white/85 px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                <LoadingSprite size="sm" />
+                Test loading
+              </button>
             </div>
           </div>
         </section>
@@ -118,7 +151,8 @@ export function AuthLanding() {
               onVerified={(user) => {
                 sessionStorage.removeItem(PENDING_VERIFY_KEY);
                 if (user) {
-                  routeByRole(user);
+                  transitionUserRef.current = user;
+                  setTransitionUser(user);
                 } else {
                   // OTP verified but no password in session → redirect to sign in
                   setVerifiedEmail(pendingSignup.email);
@@ -136,7 +170,8 @@ export function AuthLanding() {
             <SignInForm
               onSignedIn={(user) => {
                 setVerifiedEmail(null);
-                routeByRole(user);
+                transitionUserRef.current = user;
+                setTransitionUser(user);
               }}
               onGoSignUp={() => {
                 setVerifiedEmail(null);
@@ -161,6 +196,23 @@ export function AuthLanding() {
           )}
         </section>
       </div>
+
+      {transitionUser && (
+        <HorseTransition
+          name={transitionUser.name}
+          role={transitionUser.role}
+          onDone={handleTransitionDone}
+        />
+      )}
+
+      {testLoading && (
+        <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-white/45 backdrop-blur-sm">
+          <div className="inline-flex items-center gap-3 rounded-full bg-white px-5 py-3 text-sm font-medium text-slate-700 shadow-lg">
+            <LoadingSprite size="md" />
+            Đang test loading...
+          </div>
+        </div>
+      )}
     </main>
   );
 }

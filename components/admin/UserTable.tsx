@@ -1,8 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Ban, Check, LoaderCircle, Plus, RefreshCcw, Trash2 } from "lucide-react";
+import { Ban, Check, Plus, RefreshCcw, Trash2 } from "lucide-react";
 
+import { LoadingSprite } from "@/components/LoadingSprite";
 import type { AdminUserRecord } from "@/lib/admin";
 import { BanModal } from "@/components/admin/BanModal";
 
@@ -169,7 +170,7 @@ export function UserTable({ currentAdminId, initialUsers }: UserTableProps) {
           <p className="mt-1 text-sm text-slate-500">CRUD user, đổi role và áp dụng cấm chat theo thời gian.</p>
         </div>
         <button onClick={() => void refreshUsers()} className="secondary-button">
-          <RefreshCcw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+          {loading ? <LoadingSprite size="sm" /> : <RefreshCcw className="h-4 w-4" />}
           Làm mới
         </button>
       </div>
@@ -191,7 +192,7 @@ export function UserTable({ currentAdminId, initialUsers }: UserTableProps) {
 
       <div className="mt-5 flex justify-between gap-4">
         <input value={search} onChange={(event) => setSearch(event.target.value)} className="input max-w-md" placeholder="Tìm theo tên hoặc email" />
-        {loading && <span className="inline-flex items-center gap-2 text-sm text-slate-500"><LoaderCircle className="h-4 w-4 animate-spin" />Đang xử lý...</span>}
+        {loading && <span className="inline-flex items-center gap-2 text-sm text-slate-500"><LoadingSprite size="sm" />Đang xử lý...</span>}
       </div>
 
       {error && <p className="mt-4 rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</p>}

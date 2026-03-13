@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { LoaderCircle, MailCheck } from "lucide-react";
+import { MailCheck } from "lucide-react";
 
 import {
   resendSignupOtp,
@@ -9,6 +9,7 @@ import {
   type PendingSignup,
   type User,
 } from "@/lib/auth";
+import { LoadingSprite } from "@/components/LoadingSprite";
 
 export function VerifyEmailForm({
   pending,
@@ -156,7 +157,7 @@ export function VerifyEmailForm({
       >
         {loading ? (
           <span className="inline-flex items-center gap-2">
-            <LoaderCircle className="h-4 w-4 animate-spin" />
+            <LoadingSprite size="sm" />
             Đang xác nhận...
           </span>
         ) : (

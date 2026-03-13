@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { LoadingSprite } from "@/components/LoadingSprite";
 import type { AdminUserRecord } from "@/lib/admin";
 
 const options = [
@@ -91,7 +92,14 @@ export function BanModal({ onClose, onSaved, user }: BanModalProps) {
         <div className="mt-6 flex justify-end gap-3">
           <button onClick={onClose} className="secondary-button">Hủy</button>
           <button onClick={() => void submit()} disabled={loading} className="primary-button">
-            {loading ? "Đang xử lý..." : "Xác nhận cấm chat"}
+            {loading ? (
+              <span className="inline-flex items-center gap-2">
+                <LoadingSprite size="sm" />
+                Đang xử lý...
+              </span>
+            ) : (
+              "Xác nhận cấm chat"
+            )}
           </button>
         </div>
       </div>

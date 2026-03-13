@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { LoaderCircle, SendHorizonal } from "lucide-react";
+import { SendHorizonal } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 
+import { LoadingSprite } from "@/components/LoadingSprite";
 import { streamChat } from "@/lib/chat";
 import { createClient } from "@/utils/supabase/client";
 import type { MessageRow } from "@/types/database";
@@ -135,7 +136,7 @@ export default function ChatBox({
             <img
               src="/bot.png"
               alt="bot avatar"
-              className="h-full w-full object-cover"
+              className="h-full w-full object-cover scale-120"
               onError={() => setBotAvatarBroken(true)}
             />
           ) : (
@@ -205,7 +206,7 @@ export default function ChatBox({
 
         {isLoading && (
           <div className="inline-flex items-center gap-2 rounded-full bg-slate-50 px-4 py-2 text-sm text-slate-500">
-            <LoaderCircle className="h-4 w-4 animate-spin" />
+            <LoadingSprite size="sm" />
             AI đang trả lời...
           </div>
         )}

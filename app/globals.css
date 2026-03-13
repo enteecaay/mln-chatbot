@@ -120,3 +120,280 @@ h6 {
   background: rgba(255, 255, 255, 0.95);
   transform: translateY(-1px);
 }
+
+/* ============================================================
+   Horse Herd Transition — 5 horses pulling 1 banner (right → left)
+   Sprite: 67×16 px — 4 frames × 16×16, scaled ×10 → 160×160 px/frame
+   ============================================================ */
+
+/* Transparent overlay — horses run over current page */
+.horse-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  overflow: visible;
+  background: transparent;
+  pointer-events: none;
+}
+
+/* ---- Herd rig: moves as one unit left→right ---- */
+.horse-herd-rig {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  /* full rig width ≈ 160 + 100 + 680 = ~940px, add margins */
+  animation: horse-herd-run 7s cubic-bezier(0.22, 0.04, 0.42, 1) forwards;
+  pointer-events: none;
+}
+
+@keyframes horse-herd-run {
+  0%   { transform: translateX(-1050px) translateY(-50%); }
+  100% { transform: translateX(calc(100vw + 950px)) translateY(-50%); }
+}
+
+/* ---- Column of 5 horses ---- */
+.horse-herd-horses {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+/* ---- Individual horse body ---- */
+.horse-body {
+  position: relative;
+  flex-shrink: 0;
+}
+
+/* Sprite: 67×16 scaled ×10 = 670×160, 4 frames of 160px each */
+.horse-sprite {
+  display: block;
+  width: 162px;
+  height: 162px;
+  background-image: url('/horsesprite.png');
+  background-repeat: no-repeat;
+  background-size: 638px 160px;
+  background-position: 0px 0px;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  animation: horse-sprite-run 0.5s steps(4) infinite;
+}
+
+@keyframes horse-sprite-run {
+  from { background-position:    0px 0px; }
+  to   { background-position: -630px 0px; } /* 4 × 170px (16px frame + 1px gap) × scale10 */
+}
+
+/* ---- SVG rope fan ---- */
+.horse-rope-svg {
+  flex-shrink: 0;
+  overflow: visible;
+}
+
+/* ---- Banner ---- */
+.horse-banner {
+  position: relative;
+  width: clamp(520px, 64vw, 1120px);
+  min-height: clamp(92px, 15vh, 170px);
+  background: linear-gradient(135deg, #be185d 0%, #7c3aed 52%, #2563eb 100%);
+  border-radius: 16px 16px 0 0;
+  border: 3px solid rgba(255, 255, 255, 0.5);
+  box-shadow:
+    0 20px 80px rgba(124, 58, 237, 0.55),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.15);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(10px, 1.4vh, 18px) clamp(22px, 3.6vw, 52px) clamp(18px, 2.2vh, 28px);
+  gap: 4px;
+  flex-shrink: 0;
+  animation: horse-banner-wave 0.55s ease-in-out infinite alternate;
+}
+
+@keyframes horse-banner-wave {
+  from { transform: rotate(-1.5deg) translateY(0px); }
+  to   { transform: rotate(1.5deg)  translateY(-8px); }
+}
+
+.horse-banner-strings {
+  position: absolute;
+  top: clamp(-38px, -5vh, -28px);
+  left: 0; right: 0;
+  display: flex;
+  justify-content: space-between;
+  padding: 0 clamp(22px, 4vw, 52px);
+}
+
+.horse-banner-string {
+  display: block;
+  width: 4px;
+  height: clamp(30px, 5vh, 46px);
+  background: linear-gradient(180deg, #d97706, #92400e);
+  border-radius: 2px;
+}
+
+.horse-banner-subtitle {
+  font-size: clamp(10px, 1vw, 14px);
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.75);
+  text-align: center;
+}
+
+.horse-banner-greeting {
+  font-size: clamp(1.5rem, 3.2vw, 3rem);
+  font-weight: 900;
+  color: #ffffff;
+  text-shadow: 0 3px 20px rgba(0, 0, 0, 0.45);
+  text-align: center;
+  line-height: 1.2;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.horse-banner-fringe-row {
+  position: absolute;
+  bottom: clamp(-18px, -2.5vh, -14px);
+  left: 0; right: 0;
+  display: flex;
+  justify-content: space-around;
+  padding: 0 10px;
+}
+
+.horse-banner-fringe {
+  display: block;
+  width: clamp(14px, 1.8vw, 24px);
+  height: clamp(14px, 2vh, 22px);
+  background: #fde68a;
+  clip-path: polygon(50% 100%, 0% 0%, 100% 0%);
+  flex-shrink: 0;
+  border-top: 1px solid #fbbf24;
+}
+
+/* ---- Hooves dust (trailing LEFT side — horse moves right) ---- */
+.horse-dust {
+  position: absolute;
+  font-size: 1rem;
+  pointer-events: none;
+  user-select: none;
+  line-height: 1;
+}
+
+.horse-dust-1 {
+  bottom: -4px;
+  left: 4px;
+  animation: horse-dust-puff 0.45s ease-out infinite;
+}
+
+.horse-dust-2 {
+  bottom: -2px;
+  left: 28px;
+  animation: horse-dust-puff 0.45s ease-out 0.22s infinite;
+}
+
+@keyframes horse-dust-puff {
+  0%   { opacity: 0.85; transform: scale(0.5)  translate(0,    0); }
+  100% { opacity: 0;    transform: scale(2.4)  translate(-28px, -10px); }
+}
+
+/* ============================================================
+   Loading Spinner
+   ============================================================ */
+
+.loading-sprite {
+  --loading-spin-duration: 850ms;
+  display: inline-block;
+  border-radius: 9999px;
+  border: 2px solid rgba(182, 92, 128, 0.26);
+  border-top-color: #b65c80;
+  border-right-color: #5d7ed8;
+  animation: loading-spin var(--loading-spin-duration) linear infinite;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+.loading-sprite--sm {
+  width: 18px;
+  height: 18px;
+}
+
+.loading-sprite--md {
+  width: 28px;
+  height: 28px;
+}
+
+.loading-sprite--lg {
+  width: 40px;
+  height: 40px;
+}
+
+@keyframes loading-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ============================================================
+   Global Idle Mascot (bottom-left)
+   ============================================================ */
+
+.idle-mascot {
+  position: fixed;
+  left: 10px;
+  bottom: 0px;
+  z-index: 12000;
+  pointer-events: none;
+  user-select: none;
+}
+
+.idle-mascot-sprite {
+  display: block;
+  overflow: visible;
+  width: 105px;
+  height: 160px;
+  background-image: url('/loadingsprite.png');
+  background-repeat: no-repeat;
+  /* Sheet size: 630x320 = (6 * 105) x (2 * 160) */
+  background-size: 630px 320px;
+  background-position: 0px 0px;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  filter: drop-shadow(0 8px 14px rgba(15, 23, 42, 0.22));
+  will-change: background-position;
+  animation: idle-mascot-frames 2s step-end infinite;
+}
+
+@keyframes idle-mascot-frames {
+  0%, 16.66% {
+    background-position: 0px 0px;
+  }
+  16.67%, 33.33% {
+    background-position: -105px 0px;
+  }
+  33.34%, 50% {
+    background-position: -210px 0px;
+  }
+  50.01%, 66.66% {
+    background-position: -315px 0px;
+  }
+  66.67%, 83.33% {
+    background-position: -420px 0px;
+  }
+  83.34%, 100% {
+    background-position: -525px 0px;
+  }
+}
+
+@media (max-width: 640px) {
+  .idle-mascot {
+    left: 8px;
+    bottom: 8px;
+    transform: scale(0.75);
+    transform-origin: left bottom;
+  }
+}

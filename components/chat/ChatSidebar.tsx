@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { LoaderCircle, MessageCircleMore, Plus, Trash2 } from "lucide-react";
+import { MessageCircleMore, Plus, Trash2 } from "lucide-react";
 
+import { LoadingSprite } from "@/components/LoadingSprite";
 import { createClient } from "@/utils/supabase/client";
 import type { ChatSessionRow } from "@/types/database";
 
@@ -89,14 +90,14 @@ export function ChatSidebar({
         </div>
 
         <button onClick={() => void createSession()} disabled={creating} className="secondary-button px-3">
-          {creating ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+          {creating ? <LoadingSprite size="sm" /> : <Plus className="h-4 w-4" />}
         </button>
       </div>
 
       <div className="mt-4 flex-1 space-y-3 overflow-y-auto pr-1">
         {loading && (
           <div className="inline-flex items-center gap-2 rounded-full bg-slate-50 px-4 py-2 text-sm text-slate-500">
-            <LoaderCircle className="h-4 w-4 animate-spin" />
+            <LoadingSprite size="sm" />
             Đang tải...
           </div>
         )}
