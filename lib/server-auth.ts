@@ -36,7 +36,7 @@ function toUser(profile: {
 }
 
 export async function getCurrentUserServer(): Promise<User | null> {
-  await ensureSeedAdminSafely();
+  // await ensureSeedAdminSafely();
 
   const supabase = await createClient();
   const {

@@ -32,7 +32,10 @@ export function VerifyEmailForm({
 
   useEffect(() => {
     if (resendCooldown <= 0) return;
-    const timer = setTimeout(() => setResendCooldown((current) => current - 1), 1000);
+    const timer = setTimeout(
+      () => setResendCooldown((current) => current - 1),
+      1000,
+    );
     return () => clearTimeout(timer);
   }, [resendCooldown]);
 
@@ -54,7 +57,10 @@ export function VerifyEmailForm({
 
   const handlePaste = (event: React.ClipboardEvent) => {
     event.preventDefault();
-    const pasted = event.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
+    const pasted = event.clipboardData
+      .getData("text")
+      .replace(/\D/g, "")
+      .slice(0, 6);
     const next = [...code];
 
     pasted.split("").forEach((digit, index) => {
@@ -107,8 +113,12 @@ export function VerifyEmailForm({
       </div>
 
       <h1 className="text-3xl font-semibold text-slate-900">Xác nhận email</h1>
-      <p className="mt-2 text-sm text-slate-600">Nhập mã OTP gồm 6 chữ số vừa được gửi đến</p>
-      <p className="mt-1 text-sm font-semibold text-[#5d7ed8]">{pending.email}</p>
+      <p className="mt-2 text-sm text-slate-600">
+        Nhập mã OTP gồm 6 chữ số vừa được gửi đến
+      </p>
+      <p className="mt-1 text-sm font-semibold text-[#5d7ed8]">
+        {pending.email}
+      </p>
 
       <div className="my-8 flex justify-center gap-2" onPaste={handlePaste}>
         {code.map((digit, index) => (
@@ -123,15 +133,27 @@ export function VerifyEmailForm({
             value={digit}
             onChange={(event) => handleInput(index, event.target.value)}
             onKeyDown={(event) => handleKeyDown(index, event)}
-            className="h-14 w-12 rounded-2xl border border-white/80 bg-white/80 text-center text-xl font-bold text-slate-900 outline-none transition focus:border-[#5d7ed8]"
+            className="h-14 w-12 rounded-2xl border border-slate-300 bg-white text-center text-xl font-bold text-slate-900 outline-none transition focus:border-[#5d7ed8]"
           />
         ))}
       </div>
 
-      {error && <p className="mb-4 rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</p>}
-      {resendMessage && <p className="mb-4 rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{resendMessage}</p>}
+      {error && (
+        <p className="mb-4 rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-700">
+          {error}
+        </p>
+      )}
+      {resendMessage && (
+        <p className="mb-4 rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+          {resendMessage}
+        </p>
+      )}
 
-      <button onClick={() => void submit()} disabled={loading || code.join("").length < 6} className="primary-button mb-4 w-full">
+      <button
+        onClick={() => void submit()}
+        disabled={loading || code.join("").length < 6}
+        className="primary-button mb-4 w-full"
+      >
         {loading ? (
           <span className="inline-flex items-center gap-2">
             <LoaderCircle className="h-4 w-4 animate-spin" />
@@ -143,7 +165,10 @@ export function VerifyEmailForm({
       </button>
 
       <div className="flex items-center justify-center gap-4 text-sm">
-        <button onClick={onBack} className="font-medium text-slate-500 transition hover:text-slate-900">
+        <button
+          onClick={onBack}
+          className="font-medium text-slate-500 transition hover:text-slate-900"
+        >
           Quay lại
         </button>
         <button
@@ -151,7 +176,9 @@ export function VerifyEmailForm({
           disabled={resendCooldown > 0}
           className="font-medium text-[#b65c80] transition hover:text-[#924869] disabled:text-slate-400"
         >
-          {resendCooldown > 0 ? `Gửi lại sau ${resendCooldown}s` : "Gửi lại mã xác nhận"}
+          {resendCooldown > 0
+            ? `Gửi lại sau ${resendCooldown}s`
+            : "Gửi lại mã xác nhận"}
         </button>
       </div>
     </div>
