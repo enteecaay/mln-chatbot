@@ -19,7 +19,9 @@ export function AuthLanding() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [authView, setAuthView] = useState<AuthView>("signin");
-  const [pendingSignup, setPendingSignup] = useState<PendingSignup | null>(null);
+  const [pendingSignup, setPendingSignup] = useState<PendingSignup | null>(
+    null,
+  );
   const [verifiedEmail, setVerifiedEmail] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [transitionUser, setTransitionUser] = useState<User | null>(null);
@@ -53,7 +55,10 @@ export function AuthLanding() {
       try {
         const stored = sessionStorage.getItem(PENDING_VERIFY_KEY);
         if (stored) {
-          const { email, name } = JSON.parse(stored) as { email: string; name: string };
+          const { email, name } = JSON.parse(stored) as {
+            email: string;
+            name: string;
+          };
           if (email && name) {
             setPendingSignup({ email, name, password: "" });
             setAuthView("verify");
@@ -92,22 +97,37 @@ export function AuthLanding() {
               Marx-Lenin Study Assistant
             </span>
             <h1 className="mt-6 max-w-3xl text-5xl font-semibold leading-[1.04] tracking-tight text-slate-900 md:text-6xl">
-              Học Mác - Lênin với chatbot có xác thực email, lịch sử trò chuyện và dashboard quản trị.
+              Học Mác - Lênin với chatbot có xác thực email, lịch sử trò chuyện
+              và dashboard quản trị.
             </h1>
             <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-600">
-              Nền tảng dành cho mini project lớp học: đăng nhập an toàn bằng OTP gửi tới Gmail, lưu lịch sử từng cuộc trò chuyện và quản lý người dùng theo vai trò user hoặc admin.
+              Nền tảng dành cho mini project lớp học: đăng nhập an toàn bằng OTP
+              gửi tới Gmail, lưu lịch sử từng cuộc trò chuyện và quản lý người
+              dùng theo vai trò user hoặc admin.
             </p>
 
             <div className="mt-10 grid gap-4 md:grid-cols-3">
-              <FeatureCard icon={<Sparkles className="h-5 w-5" />} title="Chat nhiều phiên" description="Tạo nhiều đoạn chat riêng, lưu toàn bộ lịch sử và quay lại học tiếp bất kỳ lúc nào." />
-              <FeatureCard icon={<ShieldCheck className="h-5 w-5" />} title="Xác thực thật" description="Đăng ký bằng email thật, xác minh OTP và phân quyền user/admin rõ ràng." />
-              <FeatureCard icon={<WalletCards className="h-5 w-5" />} title="Dashboard admin" description="Theo dõi lượt truy cập, số lượng tin nhắn, top user và quản lý cấm chat theo thời gian." />
+              <FeatureCard
+                icon={<Sparkles className="h-5 w-5" />}
+                title="Chat nhiều phiên"
+                description="Tạo nhiều đoạn chat riêng, lưu toàn bộ lịch sử và quay lại học tiếp bất kỳ lúc nào."
+              />
+              <FeatureCard
+                icon={<ShieldCheck className="h-5 w-5" />}
+                title="Xác thực thật"
+                description="Đăng ký bằng email thật, xác minh OTP và phân quyền user/admin rõ ràng."
+              />
+              <FeatureCard
+                icon={<WalletCards className="h-5 w-5" />}
+                title="Dashboard admin"
+                description="Theo dõi lượt truy cập, số lượng tin nhắn, top user và quản lý cấm chat theo thời gian."
+              />
             </div>
 
-            <div className="mt-10 inline-flex items-center gap-2 rounded-full bg-slate-900 px-5 py-3 text-sm font-medium text-white shadow-lg shadow-slate-900/10">
+            {/* <div className="mt-10 inline-flex items-center gap-2 rounded-full bg-slate-900 px-5 py-3 text-sm font-medium text-white shadow-lg shadow-slate-900/10">
               Bắt đầu ngay
               <ArrowRight className="h-4 w-4" />
-            </div>
+            </div> */}
           </div>
         </section>
 
@@ -185,7 +205,6 @@ export function AuthLanding() {
           onDone={handleTransitionDone}
         />
       )}
-
     </main>
   );
 }
